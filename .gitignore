@@ -1,0 +1,7 @@
+*.cfg
+.venv/
+bin/
+*.egg-info
+lib
+include
+*.json
