@@ -1,11 +1,51 @@
+# BSD 3-Clause License
+# Copyright (c) 2024, mac
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# 1. Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# 3. Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+
 import os
 import json
 import click
 import logging
+from pyfiglet import Figlet
 from crypter_main import CrypterMain
 from crypter_lazy_load import CrypterCommandGroup
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', handlers=[logging.StreamHandler()])
+
+
+def print_header():
+    screen_width = os.get_terminal_size().columns
+    for col in range(screen_width):
+        click.echo('*', nl=False)
+    f = Figlet(font='slant', justify='center', width=os.get_terminal_size().columns)
+    print(f.renderText('Welcome to Crypter'))
+    for col in range(screen_width):
+        click.echo('*', nl=False)
+    print("\r\n\r\n")
+
+
+def prompt_user_password(ctx, param, generate_password):
+    '''
+    Callback to prompt for username/password based on the generate_password flag value
+    '''
+    keyName = click.prompt("Please provide KeyName")
+    userName = click.prompt("Please provide userName")
+    userPassword = None
+    if not generate_password:
+        userPassword = click.prompt('Please provide UserPassword')
+    return (keyName, userName, userPassword)
 
 
 @click.group()
@@ -16,17 +56,18 @@ def add():
     pass
 
 @add.command()
-@click.option("--keyname", required=True)
-@click.option("--username", required=True)
-@click.option("--userpassword", hide_input=True, default='112')
-@click.option("--autogenerate", required=False, default=True, show_default=True)
-def key(keyname, username, userpassword, autogenerate):
+@click.option("--generate-password", required=False, default=True, show_default=True, callback=prompt_user_password)
+@click.option("--keyName", required=False, help="A keyname to tag username/password record")
+@click.option("--username", required=False, help="user name")
+@click.option("--userPassword", hide_input=True, help="user password")
+def key(keyname, username, userpassword, generate_password):
     '''
     Provide a keyname to tag your username/password.
     '''
+    keyname, username, userpassword = generate_password
     response = CrypterMain.add_key(keyname, username, userpassword)
-    click.echo("A record with the following information has been added succesfully")
-    click.echo(response)
+    click.echo("A new record has been added with the following details,")
+    click.echo(json.dumps(response, indent=4))
 
 
 @click.group()
@@ -37,13 +78,15 @@ def get():
     pass
 
 @get.command()
-@click.option("--keyname", required=True)
+@click.option("--keyname", required=True, prompt=True)
 def key(keyname):
     '''
     Provide a keyname to get your stored username/password if any.
     '''
-    response = CrypterMain.get_key(keyname)
-    click.echo(response)
+    keyNames = [keyName.strip() for keyName in keyname.split(",")]
+    response = CrypterMain.get_key(keyNames=keyNames)
+    click.echo("Following record(s) have been found with the given key(s),")
+    click.echo(json.dumps(response, indent=4))
 
 
 @click.group()
@@ -54,13 +97,15 @@ def delete():
     pass
 
 @delete.command()
-@click.option("--keyname", required=True)
+@click.option("--keyname", required=True, prompt=True)
 def key(keyname):
     '''
     Provide a keyname to delete your stored username/password if any.
     '''
-    click.echo(f"No key with name {keyname} is found")
-
+    keyNames = [keyName.strip() for keyName in keyname.split(",")]
+    response = CrypterMain.delete_key(keyNames=keyNames)
+    click.echo("Following record(s) have been deleted with the given key(s),")
+    click.echo(json.dumps(response, indent=4))
 
 @click.group()
 def cloud():
@@ -87,16 +132,9 @@ def list():
     '''
     List all the stored username/passwords.
     '''
-    if os.path.exists("data.json"):
-        with open("data.json") as data:
-            try:
-                res = json.load(data)
-                click.echo(res)
-            except json.JSONDecodeError:
-                click.echo(f"No keys found")
-            finally:
-                return
-    click.echo(f"No keys found")
+    click.echo("Following are the available record(s) in the system")
+    response = CrypterMain.get_key()
+    click.echo(json.dumps(response, indent=2))
 
 
 @click.command()

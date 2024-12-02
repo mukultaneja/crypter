@@ -1,3 +1,19 @@
+# BSD 3-Clause License
+# Copyright (c) 2024, mac
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# 1. Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# 3. Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+
 import os
 import logging
 import sqlalchemy as db
@@ -5,11 +21,6 @@ from datetime import datetime
 
 
 class CrypterDb(object):
-    def __call__(cls, *args, **kwargs):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super().__call__(cls, *args, **kwargs)
-        return cls.instance
-
     def __init__(self, dbName, dbPath):
         self.dbName = dbName
         self.dbFile = f"{os.path.join(dbPath, dbName)}.db"
@@ -17,8 +28,14 @@ class CrypterDb(object):
         self.connection = None
         self.meta = db.MetaData()
 
-    def connect(self):
+    def __enter__(self):
         self.connection = self.engine.connect()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.connection.commit()
+        self.connection.close()
+        self.connection = None
 
     def setup(self):
         secret = db.Table("secret", self.meta,
@@ -45,30 +62,32 @@ class CrypterDb(object):
     def cleanup(self):
         pass
 
+    def execute(self, query):
+        result = self.connection.execute(query)
+        return result
+
     def insert(self, tableName, values):
-        print(tableName, values)
         table = db.Table(tableName, self.meta, autoload_with=self.engine)
-        query = table.insert().values(**values)
-        return self.execute(query)
+        query = table.insert().values(**values).returning(table.c.key_name, table.c.user_name, table.c.user_password)
+        result = self.execute(query).fetchall()
+        return result
 
     def update(self):
         pass
 
-    def get(self, keyName, tableName):
+    def get(self, tableName, keyNames):
         table = db.Table(tableName, self.meta, autoload_with=self.engine)
-        query = table.select()
+        query = table.select().with_only_columns(table.columns.key_name, table.columns.user_name, table.columns.user_password)
+        if keyNames:
+            query = query.where(table.columns.key_name.in_(keyNames))
         return self.execute(query).fetchall()
 
-    def delete(self):
+    def delete(self, tableName, keyNames):
         table = db.Table(tableName, self.meta, autoload_with=self.engine)
-        table.drop(self.engine)
-
-    def execute(self, query):
-        self.connect()
-        result = self.connection.execute(query)
-        self.connection.commit()
+        result = list()
+        if not keyNames:
+            table.drop(self.engine)
+            return result
+        query = table.delete().where(table.columns.key_name.in_(keyNames)).returning(table.c.key_name, table.c.user_name, table.c.user_password)
+        result = self.execute(query).fetchall()
         return result
-
-    def close(self):
-        self.connection.close()
-        self.connection = None
