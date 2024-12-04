@@ -21,9 +21,9 @@ setup(
     version='0.1.0',
     py_modules=['Crypter'],
     install_requires=[
-        'Click',
+        'click',
         'sqlalchemy',
-        'pyfiglet'
+        'cryptography'
     ],
     entry_points={
         'console_scripts': [

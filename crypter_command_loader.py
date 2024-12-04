@@ -2,7 +2,7 @@ import click
 import importlib
 
 
-class CrypterCommandGroup(click.Group):
+class CrypterCommandLoader(click.Group):
     def __init__(self, *args, lazy_subcommands=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.lazy_subcommands = lazy_subcommands or {}
@@ -18,14 +18,10 @@ class CrypterCommandGroup(click.Group):
         return super().get_command(ctx, cmd_name)
 
     def _lazy_load(self, cmd_name):
-        # lazily loading a command, first get the module name and attribute name
         import_path = self.lazy_subcommands[cmd_name]
         modname, cmd_object_name = import_path.rsplit(".", 1)
-        # do the import
         mod = importlib.import_module(modname)
-        # get the Command object from that module
         cmd_object = getattr(mod, cmd_object_name)
-        # check the result to make debugging easier
         if not isinstance(cmd_object, click.BaseCommand):
             raise ValueError(
                 f"Lazy loading of {import_path} failed by returning "

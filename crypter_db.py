@@ -24,24 +24,33 @@ class CrypterDb(object):
     def __init__(self, dbName, dbPath):
         self.dbName = dbName
         self.dbFile = f"{os.path.join(dbPath, dbName)}.db"
-        self.engine = db.create_engine(f"sqlite:///{self.dbFile}")
+        self.engine = None
         self.connection = None
-        self.meta = db.MetaData()
+        self.meta = None
 
     def __enter__(self):
+        self.engine = db.create_engine(f"sqlite:///{self.dbFile}")
+        self.meta = db.MetaData()
         self.connection = self.engine.connect()
         return self
 
-    def __exit__(self, type, value, traceback):
-        self.connection.commit()
-        self.connection.close()
-        self.connection = None
+    def __exit__(self, ex_type, ex_value, ex_traceback):
+        if self.connection:
+            self.connection.commit()
+            self.connection.close()
+            self.connection = None
+            self.engine = None
+            self.meta = None
+        if ex_type:
+            return False
+
+    def is_db_present(self):
+        return os.path.exists(self.dbFile)
 
     def setup(self):
         secret = db.Table("secret", self.meta,
                           db.Column("Id", db.Integer(), nullable=False, primary_key=True, autoincrement=True),
-                          db.Column("tool_seed", db.String(255), nullable=False),
-                          db.Column("user_seed", db.String(255), nullable=False),
+                          db.Column("key", db.String(255), nullable=False),
                           db.Column("created_at", db.DATETIME, nullable=True, default=datetime.now()),
                           db.Column("modified_at", db.DATETIME, nullable=True, default=datetime.now()),
                           db.Column("is_deleted", db.Boolean, nullable=True, default=False),
@@ -49,9 +58,9 @@ class CrypterDb(object):
         )
         records = db.Table("records", self.meta,
                     db.Column("Id", db.Integer(), nullable=False, primary_key=True, autoincrement=True),
-                    db.Column("key_name", db.String(255), nullable=False),
-                    db.Column("user_name", db.String(255), nullable=False),
-                    db.Column("user_password", db.String(255), nullable=False),
+                    db.Column("key", db.String(255), nullable=False),
+                    db.Column("name", db.String(255), nullable=False),
+                    db.Column("password", db.String(255), nullable=False),
                     db.Column("created_at", db.DATETIME, nullable=True, default=datetime.now()),
                     db.Column("modified_at", db.DATETIME, nullable=True, default=datetime.now()),
                     db.Column("is_deleted", db.Boolean, nullable=True, default=False),
@@ -59,35 +68,53 @@ class CrypterDb(object):
         )
         self.meta.create_all(self.engine)
 
-    def cleanup(self):
-        pass
-
     def execute(self, query):
         result = self.connection.execute(query)
         return result
 
-    def insert(self, tableName, values):
+    def insert(self, tableName, values, return_columns=None):
+        if not self.is_db_present():
+            raise Exception("No database found. Please run the 'crypter init' command to setup.")
+
         table = db.Table(tableName, self.meta, autoload_with=self.engine)
-        query = table.insert().values(**values).returning(table.c.key_name, table.c.user_name, table.c.user_password)
-        result = self.execute(query).fetchall()
-        return result
+        query = table.insert().values(**values)
+        if return_columns:
+            args = [table.columns[col] for col in return_columns]
+            query = query.returning(*args)
+        return self.execute(query).fetchall()
 
     def update(self):
         pass
 
-    def get(self, tableName, keyNames):
+    def get(self, tableName, keyNames, return_columns=None):
+        if not self.is_db_present():
+            raise Exception("No database found. Please run the 'crypter init' command to setup.")
+
         table = db.Table(tableName, self.meta, autoload_with=self.engine)
-        query = table.select().with_only_columns(table.columns.key_name, table.columns.user_name, table.columns.user_password)
+        query = table.select()
         if keyNames:
-            query = query.where(table.columns.key_name.in_(keyNames))
+            query = query.where(table.columns.key.in_(keyNames))
+        if return_columns:
+            args = [table.columns[col] for col in return_columns]
+            query = query.with_only_columns(*args)
         return self.execute(query).fetchall()
 
-    def delete(self, tableName, keyNames):
+    def delete(self, tableName, keyNames, return_columns=None):
+        if not self.is_db_present():
+            raise Exception("No database found. Please run the 'crypter init' command to setup.")
+
         table = db.Table(tableName, self.meta, autoload_with=self.engine)
         result = list()
-        if not keyNames:
-            table.drop(self.engine)
-            return result
-        query = table.delete().where(table.columns.key_name.in_(keyNames)).returning(table.c.key_name, table.c.user_name, table.c.user_password)
-        result = self.execute(query).fetchall()
-        return result
+        query = table.delete().where(table.columns.key.in_(keyNames))
+        if return_columns:
+            args = [table.columns[col] for col in return_columns]
+            query = query.returning(*args)
+        return self.execute(query).fetchall()
+
+    def drop(self, tableName):
+        if not self.is_db_present():
+            raise Exception("No database found. Please run the 'crypter init' command to setup.")
+
+        table = db.Table(tableName, self.meta, autoload_with=self.engine)
+        table.drop(self.engine)
+        

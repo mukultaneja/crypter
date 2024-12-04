@@ -18,22 +18,10 @@ import os
 import json
 import click
 import logging
-from pyfiglet import Figlet
 from crypter_main import CrypterMain
-from crypter_lazy_load import CrypterCommandGroup
+from crypter_command_loader import CrypterCommandLoader
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', handlers=[logging.StreamHandler()])
-
-
-def print_header():
-    screen_width = os.get_terminal_size().columns
-    for col in range(screen_width):
-        click.echo('*', nl=False)
-    f = Figlet(font='slant', justify='center', width=os.get_terminal_size().columns)
-    print(f.renderText('Welcome to Crypter'))
-    for col in range(screen_width):
-        click.echo('*', nl=False)
-    print("\r\n\r\n")
 
 
 def prompt_user_password(ctx, param, generate_password):
@@ -64,10 +52,13 @@ def key(keyname, username, userpassword, generate_password):
     '''
     Provide a keyname to tag your username/password.
     '''
-    keyname, username, userpassword = generate_password
-    response = CrypterMain.add_key(keyname, username, userpassword)
-    click.echo("A new record has been added with the following details,")
-    click.echo(json.dumps(response, indent=4))
+    try:
+        keyname, username, userpassword = generate_password
+        response = CrypterMain.add_key(keyname, username, userpassword)
+        click.echo("A new record has been added with the following details,")
+        click.echo(json.dumps(response, indent=4))
+    except Exception as ex:
+        click.echo(ex)
 
 
 @click.group()
@@ -83,10 +74,13 @@ def key(keyname):
     '''
     Provide a keyname to get your stored username/password if any.
     '''
-    keyNames = [keyName.strip() for keyName in keyname.split(",")]
-    response = CrypterMain.get_key(keyNames=keyNames)
-    click.echo("Following record(s) have been found with the given key(s),")
-    click.echo(json.dumps(response, indent=4))
+    try:
+        keyNames = [keyName.strip() for keyName in keyname.split(",")]
+        response = CrypterMain.get_key(keyNames=keyNames)
+        click.echo("Following record(s) have been found with the given key(s),")
+        click.echo(json.dumps(response, indent=4))
+    except Exception as ex:
+        click.echo(ex)
 
 
 @click.group()
@@ -102,10 +96,14 @@ def key(keyname):
     '''
     Provide a keyname to delete your stored username/password if any.
     '''
-    keyNames = [keyName.strip() for keyName in keyname.split(",")]
-    response = CrypterMain.delete_key(keyNames=keyNames)
-    click.echo("Following record(s) have been deleted with the given key(s),")
-    click.echo(json.dumps(response, indent=4))
+    try:
+        keyNames = [keyName.strip() for keyName in keyname.split(",")]
+        response = CrypterMain.delete_key(keyNames=keyNames)
+        click.echo("Following record(s) have been deleted with the given key(s),")
+        click.echo(json.dumps(response, indent=4))
+    except Exception as ex:
+        click.echo(ex)
+
 
 @click.group()
 def cloud():
@@ -132,10 +130,12 @@ def list():
     '''
     List all the stored username/passwords.
     '''
-    click.echo("Following are the available record(s) in the system")
-    response = CrypterMain.get_key()
-    click.echo(json.dumps(response, indent=2))
-
+    try:
+        response = CrypterMain.get_key()
+        click.echo("Following are the available record(s) in the system")
+        click.echo(json.dumps(response, indent=2))
+    except Exception as ex:
+        raise ex
 
 @click.command()
 def init():
@@ -143,14 +143,14 @@ def init():
     Perform the inital setup required to save your secrets.
     '''
     try:
-        CrypterMain.init()
+        response = CrypterMain.init()
         click.echo("Setup is done")
     except Exception as ex:
-        print(ex)
+        click.echo(ex)
 
 
 @click.group(
-    cls=CrypterCommandGroup,
+    cls=CrypterCommandLoader,
     lazy_subcommands={
         "add": "crypter.add",
         "get": "crypter.get",
