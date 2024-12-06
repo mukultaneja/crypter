@@ -23,7 +23,8 @@ setup(
     install_requires=[
         'click',
         'sqlalchemy',
-        'cryptography'
+        'cryptography',
+        'prettytable'
     ],
     entry_points={
         'console_scripts': [

@@ -21,15 +21,15 @@ from datetime import datetime
 
 
 class CrypterDb(object):
-    def __init__(self, dbName, dbPath):
-        self.dbName = dbName
-        self.dbFile = f"{os.path.join(dbPath, dbName)}.db"
+    def __init__(self, db_name, db_path):
+        self.db_name = db_name
+        self.db_file = f"{os.path.join(db_path, db_name)}.db"
         self.engine = None
         self.connection = None
         self.meta = None
 
     def __enter__(self):
-        self.engine = db.create_engine(f"sqlite:///{self.dbFile}")
+        self.engine = db.create_engine(f"sqlite:///{self.db_file}")
         self.meta = db.MetaData()
         self.connection = self.engine.connect()
         return self
@@ -38,14 +38,12 @@ class CrypterDb(object):
         if self.connection:
             self.connection.commit()
             self.connection.close()
-            self.connection = None
-            self.engine = None
-            self.meta = None
-        if ex_type:
-            return False
+        self.connection = None
+        self.engine = None
+        self.meta = None
 
     def is_db_present(self):
-        return os.path.exists(self.dbFile)
+        return os.path.exists(self.db_file)
 
     def setup(self):
         secret = db.Table("secret", self.meta,
@@ -72,11 +70,10 @@ class CrypterDb(object):
         result = self.connection.execute(query)
         return result
 
-    def insert(self, tableName, values, return_columns=None):
+    def insert(self, table_name, values, return_columns=None):
         if not self.is_db_present():
             raise Exception("No database found. Please run the 'crypter init' command to setup.")
-
-        table = db.Table(tableName, self.meta, autoload_with=self.engine)
+        table = db.Table(table_name, self.meta, autoload_with=self.engine)
         query = table.insert().values(**values)
         if return_columns:
             args = [table.columns[col] for col in return_columns]
@@ -86,35 +83,32 @@ class CrypterDb(object):
     def update(self):
         pass
 
-    def get(self, tableName, keyNames, return_columns=None):
+    def get(self, table_name, key_names, return_columns=None):
         if not self.is_db_present():
             raise Exception("No database found. Please run the 'crypter init' command to setup.")
-
-        table = db.Table(tableName, self.meta, autoload_with=self.engine)
+        table = db.Table(table_name, self.meta, autoload_with=self.engine)
         query = table.select()
-        if keyNames:
-            query = query.where(table.columns.key.in_(keyNames))
+        if key_names:
+            query = query.where(table.columns.key.in_(key_names))
         if return_columns:
             args = [table.columns[col] for col in return_columns]
             query = query.with_only_columns(*args)
         return self.execute(query).fetchall()
 
-    def delete(self, tableName, keyNames, return_columns=None):
+    def delete(self, table_name, key_names, return_columns=None):
         if not self.is_db_present():
             raise Exception("No database found. Please run the 'crypter init' command to setup.")
-
-        table = db.Table(tableName, self.meta, autoload_with=self.engine)
+        table = db.Table(table_name, self.meta, autoload_with=self.engine)
         result = list()
-        query = table.delete().where(table.columns.key.in_(keyNames))
+        query = table.delete().where(table.columns.key.in_(key_names))
         if return_columns:
             args = [table.columns[col] for col in return_columns]
             query = query.returning(*args)
         return self.execute(query).fetchall()
 
-    def drop(self, tableName):
+    def drop(self, table_name):
         if not self.is_db_present():
             raise Exception("No database found. Please run the 'crypter init' command to setup.")
-
-        table = db.Table(tableName, self.meta, autoload_with=self.engine)
+        table = db.Table(table_name, self.meta, autoload_with=self.engine)
         table.drop(self.engine)
         

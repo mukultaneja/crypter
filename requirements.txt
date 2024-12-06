@@ -1,3 +1,4 @@
 click
 sqlalchemy
 cryptography
+prettytable

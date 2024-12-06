@@ -19,6 +19,7 @@ import json
 import random
 import logging
 from crypter_db import CrypterDb
+from prettytable import PrettyTable
 from crypter_config import CrypterConfig
 from crypter_token_generator import CrypterTokenGenerator
 
@@ -26,47 +27,65 @@ from crypter_token_generator import CrypterTokenGenerator
 class CrypterMain():
     @classmethod
     def init(cls):
-        configDir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
-        os.makedirs(configDir, exist_ok=True)
-        with CrypterDb(dbName=CrypterConfig.DB_NAME, dbPath=configDir) as db:
+        config_dir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
+        os.makedirs(config_dir, exist_ok=True)
+        with CrypterDb(db_name=CrypterConfig.DB_NAME, db_path=config_dir) as db:
             db.setup()
             response = db.insert("secret", {'key': CrypterTokenGenerator.generate_key()}, return_columns=['Id'])
             return cls.format_response(response, return_columns=['Id'])
 
     @classmethod
-    def add_key(cls, keyName, userName, userPassword):
-        configDir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
-        with CrypterDb(dbName=CrypterConfig.DB_NAME, dbPath=configDir) as db:
-            salt = list(keyName + userName)
+    def add_key(cls, key_name, user_name, user_password, output_format='json'):
+        config_dir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
+        with CrypterDb(db_name=CrypterConfig.DB_NAME, db_path=config_dir) as db:
+            salt = list(key_name + user_name)
             random.shuffle(salt)
-            userPassword = userPassword if userPassword else CrypterTokenGenerator.generate_password(''.join(salt))
-            values = {'key': keyName, 'name': userName, 'password': userPassword}
-            response = db.insert(tableName='records', values=values, return_columns=['key', 'name', 'password'])
-            return cls.format_response(response, return_columns=['key', 'name', 'password'])
+            user_password = user_password if user_password else CrypterTokenGenerator.generate_password(''.join(salt))
+            values = {'key': key_name, 'name': user_name, 'password': user_password}
+            return_columns = ['key', 'name', 'password']
+            response = db.insert(table_name='records', values=values, return_columns=return_columns)
+            return cls.format_response(response, return_columns=return_columns, output_format=output_format)
 
     @classmethod
-    def get_key(cls, tableName='records', keyNames=None):
-        configDir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
-        with CrypterDb(dbName=CrypterConfig.DB_NAME, dbPath=configDir) as db:
-            response = db.get(tableName=tableName, keyNames=keyNames, return_columns=['key', 'name', 'password'])
-            return cls.format_response(response, return_columns=['key', 'name', 'password'])
+    def get_key(cls, table_name='records', key_names=None, output_format='json'):
+        config_dir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
+        with CrypterDb(db_name=CrypterConfig.DB_NAME, db_path=config_dir) as db:
+            return_columns = ['key', 'name', 'password']
+            response = db.get(table_name=table_name, key_names=key_names, return_columns=return_columns)
+            return cls.format_response(response, return_columns=return_columns, output_format=output_format)
 
     @classmethod
-    def delete_key(cls, tableName='records', keyNames=None):
-        configDir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
-        with CrypterDb(dbName=CrypterConfig.DB_NAME, dbPath=configDir) as db:
-            response = db.delete(tableName=tableName, keyNames=keyNames, return_columns=['key', 'name', 'password'])
-            return cls.format_response(response, return_columns=['key', 'name', 'password'])
+    def delete_key(cls, table_name='records', key_names=None, output_format='json'):
+        config_dir = os.path.join(CrypterConfig.CONFIG_DIR, CrypterConfig.CRYPTER_DIR)
+        with CrypterDb(db_name=CrypterConfig.DB_NAME, db_path=config_dir) as db:
+            return_columns = ['key', 'name', 'password']
+            response = db.delete(table_name=table_name, key_names=key_names, return_columns=return_columns)
+            return cls.format_response(response, return_columns=return_columns, output_format=output_format)
 
     @classmethod
-    def format_response(cls, queryResult, return_columns):
-        queryResponse = list()
-        for row in queryResult:
+    def _json_format_response(cls, query_result, return_columns):
+        query_response = list()
+        for row in query_result:
             r = dict()
-            for colName, colValue in zip(return_columns, list(row)):
-                r.update({colName: colValue})
-            queryResponse.append(r)
-        return queryResponse
+            for col_name, col_value in zip(return_columns, list(row)):
+                r.update({col_name: col_value})
+            query_response.append(r)
+        return json.dumps(query_response, indent=4)
+
+    @classmethod
+    def _tabular_format_response(cls, query_result, return_columns):
+        table_data = PrettyTable(return_columns)
+        for row in query_result:
+            table_data.add_row(row)
+        return table_data
+
+    @classmethod
+    def format_response(cls, query_result, return_columns, output_format='json'):
+        if output_format == 'json':
+            return cls._json_format_response(query_result, return_columns)
+
+        if output_format == 'tabular':
+            return cls._tabular_format_response(query_result, return_columns)
 
     @classmethod
     def cloud_init(cls):

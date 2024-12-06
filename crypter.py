@@ -18,6 +18,7 @@ import os
 import json
 import click
 import logging
+import traceback
 from crypter_main import CrypterMain
 from crypter_command_loader import CrypterCommandLoader
 
@@ -48,17 +49,18 @@ def add():
 @click.option("--keyName", required=False, help="A keyname to tag username/password record")
 @click.option("--username", required=False, help="user name")
 @click.option("--userPassword", hide_input=True, help="user password")
-def key(keyname, username, userpassword, generate_password):
+@click.option("--output-format", type=click.Choice(['json', 'tabular'], case_sensitive=False), default='json')
+def key(keyname, username, userpassword, generate_password, output_format):
     '''
     Provide a keyname to tag your username/password.
     '''
     try:
         keyname, username, userpassword = generate_password
-        response = CrypterMain.add_key(keyname, username, userpassword)
+        response = CrypterMain.add_key(keyname, username, userpassword, output_format)
         click.echo("A new record has been added with the following details,")
-        click.echo(json.dumps(response, indent=4))
-    except Exception as ex:
-        click.echo(ex)
+        click.echo(response)
+    except Exception:
+        click.echo(traceback.ex_traceback())
 
 
 @click.group()
@@ -70,17 +72,18 @@ def get():
 
 @get.command()
 @click.option("--keyname", required=True, prompt=True)
-def key(keyname):
+@click.option("--output-format", type=click.Choice(['json', 'tabular'], case_sensitive=False), default='json')
+def key(keyname, output_format):
     '''
     Provide a keyname to get your stored username/password if any.
     '''
     try:
-        keyNames = [keyName.strip() for keyName in keyname.split(",")]
-        response = CrypterMain.get_key(keyNames=keyNames)
+        key_names = [key_name.strip() for key_name in keyname.split(",")]
+        response = CrypterMain.get_key(key_names=key_names, output_format=output_format)
         click.echo("Following record(s) have been found with the given key(s),")
-        click.echo(json.dumps(response, indent=4))
-    except Exception as ex:
-        click.echo(ex)
+        click.echo(response)
+    except Exception:
+        click.echo(traceback.ex_traceback())
 
 
 @click.group()
@@ -92,17 +95,18 @@ def delete():
 
 @delete.command()
 @click.option("--keyname", required=True, prompt=True)
-def key(keyname):
+@click.option("--output-format", type=click.Choice(['json', 'tabular'], case_sensitive=False), default='json')
+def key(keyname, output_format):
     '''
     Provide a keyname to delete your stored username/password if any.
     '''
     try:
-        keyNames = [keyName.strip() for keyName in keyname.split(",")]
-        response = CrypterMain.delete_key(keyNames=keyNames)
+        key_names = [key_name.strip() for key_name in keyname.split(",")]
+        response = CrypterMain.delete_key(key_names=key_names, output_format=output_format)
         click.echo("Following record(s) have been deleted with the given key(s),")
-        click.echo(json.dumps(response, indent=4))
-    except Exception as ex:
-        click.echo(ex)
+        click.echo(response)
+    except Exception:
+        click.echo(traceback.ex_traceback())
 
 
 @click.group()
@@ -126,16 +130,17 @@ def sync():
 
 
 @click.command()
-def list():
+@click.option("--output-format", type=click.Choice(['json', 'tabular'], case_sensitive=False), default='json')
+def list(output_format):
     '''
     List all the stored username/passwords.
     '''
     try:
-        response = CrypterMain.get_key()
+        response = CrypterMain.get_key(output_format=output_format)
         click.echo("Following are the available record(s) in the system")
-        click.echo(json.dumps(response, indent=2))
-    except Exception as ex:
-        raise ex
+        click.echo(response)
+    except Exception:
+        click.echo(traceback.ex_traceback())
 
 @click.command()
 def init():
@@ -145,8 +150,8 @@ def init():
     try:
         response = CrypterMain.init()
         click.echo("Setup is done")
-    except Exception as ex:
-        click.echo(ex)
+    except Exception:
+        click.echo(traceback.ex_traceback())
 
 
 @click.group(
