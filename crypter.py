@@ -29,12 +29,12 @@ def prompt_user_password(ctx, param, generate_password):
     '''
     Callback to prompt for username/password based on the generate_password flag value
     '''
-    keyName = click.prompt("Please provide KeyName")
-    userName = click.prompt("Please provide userName")
-    userPassword = None
+    key_name = click.prompt("Please provide KeyName")
+    user_name = click.prompt("Please provide userName")
+    user_password = None
     if not generate_password:
-        userPassword = click.prompt('Please provide UserPassword')
-    return (keyName, userName, userPassword)
+        user_password = click.prompt('Please provide UserPassword')
+    return (key_name, user_name, user_password)
 
 
 @click.group()
@@ -46,9 +46,9 @@ def add():
 
 @add.command()
 @click.option("--generate-password", required=False, default=True, show_default=True, callback=prompt_user_password)
-@click.option("--keyName", required=False, help="A keyname to tag username/password record")
+@click.option("--keyname", required=False, help="A keyname to tag username/password record")
 @click.option("--username", required=False, help="user name")
-@click.option("--userPassword", hide_input=True, help="user password")
+@click.option("--userpassword", hide_input=True, help="user password")
 @click.option("--output-format", type=click.Choice(['json', 'tabular'], case_sensitive=False), default='json')
 def key(keyname, username, userpassword, generate_password, output_format):
     '''
