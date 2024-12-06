@@ -14,21 +14,10 @@
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
 
-from setuptools import setup
+import os
 
-setup(
-    name='Crypter',
-    version='1.0.0',
-    py_modules=['Crypter'],
-    install_requires=[
-        'click',
-        'sqlalchemy',
-        'cryptography',
-        'prettytable'
-    ],
-    entry_points={
-        'console_scripts': [
-            'Crypter = crypter:cli',
-        ],
-    },
-)
+
+class CrypterConfig():
+    CONFIG_DIR = os.environ['HOME']
+    CRYPTER_DIR = ".crypter"
+    DB_NAME = "crypter"

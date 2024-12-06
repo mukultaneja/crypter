@@ -19,7 +19,7 @@ import json
 import click
 import logging
 import traceback
-from crypter_main import CrypterMain
+from src.crypter_main import CrypterMain
 from crypter_command_loader import CrypterCommandLoader
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', handlers=[logging.StreamHandler()])
